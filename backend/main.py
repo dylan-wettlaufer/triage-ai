@@ -10,7 +10,7 @@ from db.database import init_db # Assuming init_db is synchronous
 async def lifespan(app: FastAPI):
     # Startup event: Initialize database tables
     print("Application startup: Initializing database...")
-    init_db() # Call your synchronous init_db() function
+    await init_db() # Call your synchronous init_db() function
     print("Application startup: Database initialized.")
 
     # You could potentially load AI models here and store them on app.state
@@ -37,7 +37,7 @@ app = FastAPI(
 )
 
 # Include routers
-app.include_router(health.router, prefix="/health", tags=["Health"])
+#app.include_router(health.router, prefix="/health", tags=["Health"])
 app.include_router(upload.router, prefix="/api/v1/upload", tags=["Upload"])
 app.include_router(triage.router, prefix="/api/v1/triage", tags=["Triage"])
 
