@@ -1,6 +1,6 @@
 # db/models.py
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from db.database import Base
@@ -15,8 +15,8 @@ class TriageResult(Base):
     diagnostic_suggestions = Column(JSON, nullable=True) # JSONB for flexible suggestions
     extracted_document_data = Column(JSON, nullable=True) # JSONB for extracted text/fields
     image_analysis_results = Column(JSON, nullable=True) # JSONB for image classifications
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc)) 
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)) 
 
     uploaded_files = relationship("UploadedFile", back_populates="triage_result")
 
@@ -28,7 +28,7 @@ class UploadedFile(Base):
     original_filename = Column(String, nullable=False)
     filepath = Column(String, nullable=False) # The path/key within the Supabase bucket
     triage_id = Column(String, ForeignKey("triage_results.id"), nullable=False)
-    upload_time = Column(DateTime, default=datetime.utcnow)
+    upload_time = Column(DateTime, default=lambda: datetime.now(timezone.utc)) # <--- Changed here
     file_type = Column(String) # e.g., 'document', 'image'
     public_url = Column(String, nullable=True) # Public URL if bucket is public, or for signed URLs
 
