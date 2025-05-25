@@ -8,8 +8,8 @@ from db.database import Base
 class TriageResult(Base):
     __tablename__ = "triage_results"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    patient_identifier = Column(String, nullable=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4())) # unique id for triage result
+    patient_identifier = Column(String, nullable=True) # identifier for the patient, e.g., MRN, SSN, etc.
     status = Column(String, default="pending") # e.g., pending, processing_ocr, processing_img, completed, failed
     urgency_level = Column(String, nullable=True) # e.g., low, medium, high
     diagnostic_suggestions = Column(JSON, nullable=True) # JSONB for flexible suggestions
@@ -23,7 +23,7 @@ class TriageResult(Base):
 class UploadedFile(Base):
     __tablename__ = "uploaded_files"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4())) # unique id for the uploaded file
     filename = Column(String, nullable=False) # The unique filename used in Supabase
     original_filename = Column(String, nullable=False)
     filepath = Column(String, nullable=False) # The path/key within the Supabase bucket
