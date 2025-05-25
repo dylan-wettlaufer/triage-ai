@@ -1,28 +1,24 @@
 # config/settings.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
-    PROJECT_NAME: str = "MedSightAI"
+    PROJECT_NAME: str = "TriageAI"
     API_VERSION: str = "1.0.0"
     DEBUG_MODE: bool = False
 
-    # Database settings
     DATABASE_URL: str = "postgresql://user:password@host:port/dbname"
 
-    # AWS S3 (or Firebase) settings
-    S3_BUCKET_NAME: str = "medsightai-uploads"
-    AWS_ACCESS_KEY_ID: str = None # Set via environment variable
-    AWS_SECRET_ACCESS_KEY: str = None # Set via environment variable
+    SUPABASE_URL: str
+    SUPABASE_KEY: str # Use your anon public key or service role key for backend
+    SUPABASE_STORAGE_BUCKET: str = "triageai-uploads" # Make sure this matches your bucket name in Supabase
 
-    # Model paths or Hugging Face model IDs
-    LAYOUTLMV3_MODEL_ID: str = "microsoft/layoutlmv3-base"
-    VIT_SKIN_MODEL_ID: str = "google/vit-base-patch16-224" # Placeholder
-    VIT_XRAY_MODEL_ID: str = "google/vit-base-patch16-224" # Placeholder
+    MAX_FILE_SIZE_MB: int = 20 # Maximum allowed file size for uploads
 
-    # Other settings
-    UPLOAD_FOLDER: str = "temp_uploads"
-    MAX_FILE_SIZE_MB: int = 20
+    # Add Hugging Face model IDs here later, e.g.:
+    # LAYOUTLMV3_MODEL_ID: str = "microsoft/layoutlmv3-base"
+    # VIT_SKIN_MODEL_ID: str = "google/vit-base-patch16-224"
 
 settings = Settings()
