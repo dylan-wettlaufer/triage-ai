@@ -15,20 +15,20 @@ class TriageResult(Base):
     diagnostic_suggestions = Column(JSON, nullable=True) # JSONB for flexible suggestions
     extracted_document_data = Column(JSON, nullable=True) # JSONB for extracted text/fields
     image_analysis_results = Column(JSON, nullable=True) # JSONB for image classifications
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc)) 
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)) 
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)) 
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)) 
 
     uploaded_files = relationship("UploadedFile", back_populates="triage_result")
 
 class UploadedFile(Base):
-    __tablename__ = "uploaded_files"
+    __tablename__ = "uploaded_files" 
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4())) # unique id for the uploaded file
     filename = Column(String, nullable=False) # The unique filename used in Supabase
     original_filename = Column(String, nullable=False)
     filepath = Column(String, nullable=False) # The path/key within the Supabase bucket
     triage_id = Column(String, ForeignKey("triage_results.id"), nullable=False)
-    upload_time = Column(DateTime, default=lambda: datetime.now(timezone.utc)) # <--- Changed here
+    upload_time = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)) # <--- Changed here
     file_type = Column(String) # e.g., 'document', 'image'
     public_url = Column(String, nullable=True) # Public URL if bucket is public, or for signed URLs
 

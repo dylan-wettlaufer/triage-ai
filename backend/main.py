@@ -38,7 +38,7 @@ app = FastAPI(
 
 # Include routers
 #app.include_router(health.router, prefix="/health", tags=["Health"])
-app.include_router(upload.router, prefix="/api/v1/upload", tags=["Upload"])
+app.include_router(upload.router, tags=["Upload"])
 app.include_router(triage.router, prefix="/api/v1/triage", tags=["Triage"])
 
 # Optional: Root endpoint for basic check

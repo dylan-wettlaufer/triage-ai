@@ -50,7 +50,7 @@ async def upload_files(
     triage_id = str(uuid.uuid4())
     uploaded_filenames = [] # List to store filenames for database entry
 
-    # Upload files to Supabase
+    # Upload files to the database
     await create_triage_result(db, triage_id, metadata.patient_identifier)
 
     uploaded_file_info = []
@@ -62,7 +62,7 @@ async def upload_files(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File '{file.filename}' is empty"
             )
-        if file.size > settings.MAX_FILE_SIZE * 1024 * 1024:  # Convert MB to bytes, ensure the file size is within limits
+        if file.size > settings.MAX_FILE_SIZE_MB * 1024 * 1024:  # Convert MB to bytes, ensure the file size is within limits
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File '{file.filename}' exceeds the maximum size of {settings.MAX_FILE_SIZE} MB"
@@ -77,7 +77,7 @@ async def upload_files(
 
     # Upload the file to Supabase
     try:
-        uploaded_file_info = await file_manager.upload_files(files, triage_id)
+        uploaded_file_info = await file_manager.upload_files(files, triage_id) # THIS LINE GAVE ME THE ERROR
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -111,7 +111,9 @@ async def upload_files(
     )
     return TriageInitiatedResponse( # Response model for the upload endpoint
         triage_id=triage_id,
-        message="Files uploaded successfully. Triage process has been initiated."
+        message="Files uploaded successfully. Triage process has been initiated.",
+        status_url=f"/status/{triage_id}",
+        uploaded_filenames=[file.filename for file in files]
     )
 
 # Note: The `triage_orchestrator` is assumed to be an instance of a class that handles the triage process.
