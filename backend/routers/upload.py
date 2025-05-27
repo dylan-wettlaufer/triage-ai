@@ -50,7 +50,7 @@ async def upload_files(
     triage_id = str(uuid.uuid4())
     uploaded_filenames = [] # List to store filenames for database entry
 
-    # Upload files to the database
+    # Create a new triage result in the database
     await create_triage_result(db, triage_id, metadata.patient_identifier)
 
     uploaded_file_info = []

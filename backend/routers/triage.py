@@ -1,6 +1,7 @@
 # routers/triage.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
 from db.crud import get_triage_result
 from schemas.responses import TriageInitiatedResponse # Re-use or create a new one for results
@@ -8,7 +9,7 @@ from schemas.responses import TriageInitiatedResponse # Re-use or create a new o
 router = APIRouter()
 
 @router.get("/{triage_id}/status")
-async def get_triage_status(triage_id: str, db: Session = Depends(get_db)):
+async def get_triage_status(triage_id: str, db: AsyncSession = Depends(get_db)):
     """
     Retrieves the current status and results of a triage process.
     """

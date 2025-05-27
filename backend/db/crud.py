@@ -4,8 +4,11 @@ from db.models import TriageResult, UploadedFile
 import uuid
 from typing import Optional
 from sqlalchemy import update
+from sqlalchemy.orm import selectinload
 
+# CRUD operations for TriageResult and UploadedFile models
 
+# Create a new triage result
 async def create_triage_result(db: AsyncSession, triage_id: str, patient_identifier: Optional[str] = None) -> TriageResult:
     triage_result = TriageResult(
         id=triage_id,
@@ -17,12 +20,16 @@ async def create_triage_result(db: AsyncSession, triage_id: str, patient_identif
     await db.refresh(triage_result)
     return triage_result
 
-
+# Retrieve a triage result by ID
 async def get_triage_result(db: AsyncSession, triage_id: str) -> Optional[TriageResult]:
-    result = await db.execute(select(TriageResult).where(TriageResult.id == triage_id))
+    result = await db.execute(
+        select(TriageResult)
+        .options(selectinload(TriageResult.uploaded_files))
+        .where(TriageResult.id == triage_id)
+    )
     return result.scalars().first()
 
-
+# Update an existing triage result
 async def update_triage_result(
     db: AsyncSession,
     triage_id: str,
@@ -36,6 +43,11 @@ async def update_triage_result(
     result = await db.execute(select(TriageResult).where(TriageResult.id == triage_id))
     db_triage = result.scalars().first()
 
+    # If the triage result does not exist, return None
+    if db_triage is None:
+        return None
+    
+    # Update the fields if they are provided
     if db_triage:
         if status is not None: db_triage.status = status
         if urgency_level is not None: db_triage.urgency_level = urgency_level
@@ -48,7 +60,7 @@ async def update_triage_result(
 
     return db_triage
 
-
+# Create a new uploaded file entry
 async def create_uploaded_file(
     db: AsyncSession,
     triage_id: str,

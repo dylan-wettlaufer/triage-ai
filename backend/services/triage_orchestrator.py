@@ -3,6 +3,9 @@ from pathlib import Path
 from typing import List, Tuple
 from sqlalchemy.orm import Session
 from db.crud import update_triage_result # Import the update function
+import asyncio
+from models.document_analyzer import DocumentAnalyzer
+from config.settings import settings
 
 class TriageOrchestrator:
     async def start_triage_process(self, db: Session, triage_id: str, supabase_file_paths: List[str], patient_identifier: str = None):
@@ -19,27 +22,28 @@ class TriageOrchestrator:
         # Here, you would call your AI models:
         # from models.document_analyzer import DocumentAnalyzer
         # from models.image_classifier import ImageClassifier
-        # doc_analyzer = DocumentAnalyzer()
+        doc_analyzer = DocumentAnalyzer()
         # img_classifier = ImageClassifier()
 
-        # for file_path_in_supabase in supabase_file_paths:
-        #     # You might need to temporarily download the file from Supabase
-        #     # or configure your AI models to read directly from a URL.
-        #     # For this example, let's assume models get the path or URL.
-        #     if ".pdf" in file_path_in_supabase.lower():
-        #         # document_data = await doc_analyzer.analyze_document(file_path_in_supabase)
-        #         # await update_triage_result(db, triage_id, extracted_document_data=document_data)
-        #         print(f"[{triage_id}] Simulating document analysis for {file_path_in_supabase}")
-        #     elif Path(file_path_in_supabase).suffix.lower() in ['.jpg', '.jpeg', '.png']:
-        #         # image_results = await img_classifier.classify_image(file_path_in_supabase)
-        #         # await update_triage_result(db, triage_id, image_analysis_results=image_results)
-        #         print(f"[{triage_id}] Simulating image analysis for {file_path_in_supabase}")
+        extracted_document_data = {} # stores the extracted data from the documents
+        image_analysis_results = {} # stores the results of image analysis
 
+        for file_path in supabase_file_paths:
+            local_file_path = doc_analyzer.download_pdf(settings.SUPABASE_STORAGE_BUCKET, file_path) # download the file from Supabase Storage
+            print(f"[{triage_id}] Processing file: {file_path}")
+            if file_path.lower().endswith(".pdf"):
+                try:
+                    text = doc_analyzer.extract_text_from_pdf(local_file_path) # extract the text from the PDF
+                    document_data = doc_analyzer.analyze_document(text) # analyze the document
+                    extracted_document_data.update(document_data) # update the extracted data
+                    print(f"[{triage_id}] Document analysis complete: {document_data}")
+                except Exception as e:
+                    print(f"[{triage_id}] Failed to analyze PDF {file_path}: {e}")
+            elif Path(file_path).suffix.lower() in ['.jpg', '.jpeg', '.png']:
+                # Placeholder for image analysis logic
+                image_analysis_results[file_path] = {"finding": "Not implemented"}
+                print(f"[{triage_id}] Skipping image analysis (not implemented): {file_path}")
         
-
-        # Simulate some processing time
-        import time
-        time.sleep(5)
         
         # add dummy data for testing
         # In a real scenario, you would replace this with actual results from your AI models.
@@ -55,7 +59,7 @@ class TriageOrchestrator:
             status="completed",
             urgency_level=dummy_urgency,
             diagnostic_suggestions=dummy_suggestions,
-            extracted_document_data=dummy_extracted_data,
+            extracted_document_data=extracted_document_data,
             image_analysis_results=dummy_image_results
         )
         print(f"[{triage_id}] Triage process completed (simulated) and DB updated.")
