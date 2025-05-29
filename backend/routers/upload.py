@@ -1,6 +1,6 @@
 # routers/upload.py
 import uuid
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException, status, Depends
@@ -75,9 +75,11 @@ async def upload_files(
 
         uploaded_filenames.append(file.filename)  # Store the original filename for database entry
 
+    uploaded_file_info: List[Tuple[str, str]] = [] # To store (storage_path, public_url) after upload
+
     # Upload the file to Supabase
     try:
-        uploaded_file_info = await file_manager.upload_files(files, triage_id) # THIS LINE GAVE ME THE ERROR
+        uploaded_file_info = await file_manager.upload_files(files, triage_id) 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -85,18 +87,22 @@ async def upload_files(
         )
     
     # Create database records for uploaded files
-    for file_path, public_url in uploaded_file_info:
-        original_file_match = next((f for f in files if f"{triage_id}/{Path(f.filename).name}" in file_path or Path(f.filename).name == Path(file_path).name), None)
-        original_filename = original_file_match.filename if original_file_match else Path(file_path).name
-
-        file_type = "image" if original_filename and Path(original_filename).suffix.lower() in ['.jpg', '.jpeg', '.png'] else "document"
+    for storage_path, public_url in uploaded_file_info:
+        # Reconstruct original filename from storage_path for DB consistency
+        original_filename = Path(storage_path).name 
+        
+        # Determine file_type based on suffix (ensure consistent with DocumentAnalyzer)
+        file_ext = original_filename.lower().split('.')[-1]
+        file_type = "document" if file_ext == "pdf" else \
+                    "image" if file_ext in ["jpg", "jpeg", "png"] else \
+                    "other"
 
         await create_uploaded_file(
             db,
             triage_id=triage_id,
-            filename=file_path,
+            filename=storage_path,  # Use the storage path as the filename in the DB
             original_filename=original_filename,
-            filepath=file_path,
+            filepath=storage_path,  # Store the path in the DB
             file_type=file_type,
             public_url=public_url
         )
@@ -106,7 +112,7 @@ async def upload_files(
         triage_orchestrator.start_triage_process,
         db,
         triage_id,
-        [file_path for file_path, _ in uploaded_file_info],
+        uploaded_file_info,
         metadata.patient_identifier
     )
     return TriageInitiatedResponse( # Response model for the upload endpoint

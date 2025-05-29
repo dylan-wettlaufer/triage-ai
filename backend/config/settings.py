@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     MAX_FILE_SIZE_MB: int = 20 # Maximum allowed file size for uploads
 
+    LAYOUTLMV3_MODEL_ID: str = "rubentito/layoutlmv3-base-mpdocvqa" # Hugging Face model ID for document analysis
+
     @property
     def DATABASE_URL(self) -> str:
         return (

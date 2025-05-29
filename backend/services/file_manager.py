@@ -3,6 +3,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import List, Tuple
+import tempfile
 
 from fastapi import UploadFile, HTTPException, status
 from config.settings import settings
@@ -61,6 +62,32 @@ class FileManager:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to upload file: {file.filename}")
             
         return uploaded_file_info
+    
+    async def download_file_from_supabase(self, supabase_path: str) -> str:
+        try:
+            # Supabase Python client's download method returns bytes directly on success
+            response_bytes = self.supabase.storage.from_(self.storage_bucket).download(supabase_path)
+            
+            if response_bytes is None:
+                 raise FileNotFoundError(f"Supabase download returned None for: {supabase_path}")
+
+            # Create a temporary file to save the downloaded content
+            # Get original extension for the temp file
+            file_ext = Path(supabase_path).suffix 
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+            
+            # Write the bytes to the temporary file
+            temp_file.write(response_bytes)
+            temp_file.flush() # Ensure all data is written to disk
+            temp_file.close() # Close the file handle
+
+            print(f"Successfully downloaded {supabase_path} to {temp_file.name}")
+            return temp_file.name
+
+        except Exception as e:
+            print(f"Error downloading file {supabase_path} from Supabase: {e}")
+            # Re-raise the exception to be handled by the caller (DocumentAnalyzer)
+            raise FileNotFoundError(f"Failed to download file '{supabase_path}' from Supabase: {e}")
     
 
 # Instantiate FileManager after the class definition
