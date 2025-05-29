@@ -26,17 +26,17 @@ class DocumentAnalyzer:
         self.layoutlmv3_model = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         if settings.LAYOUTLMV3_MODEL_ID:
-            print(f"Loading LayoutLMv3 model from Hugging Face: {settings.LAYOUTLMV3_MODEL_ID}")
+           
             try:
                 self.layoutlmv3_processor = AutoProcessor.from_pretrained(
                     settings.LAYOUTLMV3_MODEL_ID,
                     apply_ocr=True # <--- ADD THIS LINE
                 )
                 self.layoutlmv3_model = AutoModelForDocumentQuestionAnswering.from_pretrained(settings.LAYOUTLMV3_MODEL_ID)
-                print(f"Loaded processor type: {type(self.layoutlmv3_processor)}")
+                
                 if torch.cuda.is_available():
                     self.layoutlmv3_model.to("cuda")
-                print("LayoutLMv3 model loaded successfully.")
+                
 
             except Exception as e:
                 print(f"Error loading LayoutLMv3 model: {e}")
@@ -145,7 +145,7 @@ class DocumentAnalyzer:
                             continue
 
                         try:
-                            # --- Key Change Here ---
+                            
                             # Prepare inputs for each question on the current image
                             single_question_inputs = self.layoutlmv3_processor(
                                 images=image_page,
