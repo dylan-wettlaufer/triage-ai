@@ -130,7 +130,7 @@ class DocumentAnalyzer:
                         # Add more questions specific to your forms
                     ]
                 
-                extracted_kv_pairs = {} # stores the extracted key-value pairs from the document
+                extracted_kv_pairs = {q: [] for q in questions_for_form} # stores the extracted key-value pairs from the document
 
                 for i, image_page in enumerate(document_images):
                     if not isinstance(image_page, Image.Image):
@@ -141,9 +141,6 @@ class DocumentAnalyzer:
 
                     # Process each question individually on the current image page
                     for q_idx, q in enumerate(questions_for_form):
-                        if q in extracted_kv_pairs and extracted_kv_pairs[q] not in ["Not Found", "Error: No answer found"]: # Skip if already found and valid
-                            continue
-
                         try:
                             
                             # Prepare inputs for each question on the current image
@@ -161,6 +158,11 @@ class DocumentAnalyzer:
                             answer_start = torch.argmax(start_logits)
                             answer_end = torch.argmax(end_logits) + 1 
 
+                            current_start_logit = start_logits[0, answer_start].item() # Get the logit for the start position
+                            current_end_logit = end_logits[0, answer_end - 1].item() # Get the logit for the end position
+
+                            confidence_score = current_start_logit + current_end_logit # Confidence score for the answer
+
                             # Decode the answer
                             answer = self.layoutlmv3_processor.tokenizer.decode(
                                 single_question_inputs["input_ids"][0][answer_start:answer_end],
@@ -168,17 +170,86 @@ class DocumentAnalyzer:
                             ).strip()
 
                             if answer and answer not in ["[CLS]", "[SEP]", ""]:
-                                extracted_kv_pairs[q] = answer
-                                print(f"    Q: {q} -> A: {answer}")
+                                extracted_kv_pairs[q].append({
+                                    'answer': answer,
+                                    'score': confidence_score,
+                                    'page': i + 1
+                                })
+
+                                print(f"    Q: {q} -> A: {answer}, score: {confidence_score}, page: {i + 1}")
                             elif q not in extracted_kv_pairs: # If not found yet for this question across all pages
-                                extracted_kv_pairs[q] = "Not Found"
+                                extracted_kv_pairs[q].append({
+                                    'answer': "Not Found (Empty/Special)",
+                                    'score': -100.0, # Very low score for invalid answers
+                                    'page': i + 1
+                                })
                             
                         except Exception as e:
                             print(f"    Error processing question '{q}' on page {i+1}: {e}")
                             if q not in extracted_kv_pairs or "Error" in extracted_kv_pairs[q]:
                                 extracted_kv_pairs[q] = f"Error: {e}" # Store the error message
+
+
+                final_extracted_kv_pairs = {} # Final structure to hold the cleaned up results
+                CONFIDENCE_THRESHOLD = 1.0 # Set a threshold for confidence score to filter out low-confidence answers
+
+                # Define a blacklist of common problematic answers to filter out
+                ANSWER_BLACKLIST = [
+                    "PATIENT CONSENT", "PATIENT DETAILS", "MEDICAL HISTORY",
+                    "PHYSICIAN", "DOCTOR", "BIRTH", "ACTIVE TREATING PHYSICIANS",
+                    "SECONDARY INSURANCE POLICY", "PREFFERED PHARMACY", "STREET ADDRESS",
+                    "2 OF 6", "3", "4", "5", "6", # Page numbers
+                    # Add more as you observe problematic common extractions
+                ]
+
+                for question, answers in extracted_kv_pairs.items():
+                    best_answer = "Not Found" # Default if no valid answers found
+                    highest_score_for_q = -float('inf') # Initialize to negative infinity
+                    answers.sort(key=lambda x: x['score'], reverse=True) # Sort answers by score in descending order
+
+                    for item in answers:
+                        current_answer = item['answer'].strip() # Get the answer text
+                        current_score = item['score']
+
+                        if current_score < CONFIDENCE_THRESHOLD:
+                            continue # Skip answers below threshold
+
+                        # Apply blacklist filter
+                        # Check for exact match to a blacklisted term (case-insensitive for safety)
+                        if current_answer.upper() in ANSWER_BLACKLIST:
+                            continue # Skip blacklisted answers
+
+                        # Additional heuristic for numbers that might be page numbers for phone/dob/address
+                        if q in ["What is the patient's phone number?", "What is the patient's date of birth?", "What is the patient's address?"] and current_answer.isdigit() and len(current_answer) < 5:
+                             continue # Likely a page number or irrelevant digit
+
+                        best_answer = current_answer
+                        highest_score_for_q = current_score
+                        break # Found a valid answer with sufficient confidence score
+                       
+
+                    if best_answer != "Not Found":
+                        # Cleaning for "What is the patient's full name?"
+                        if q == "What is the patient's full name?":
+                            if best_answer.startswith("PATIENT DETAILS"):
+                                # This handles "PATIENT DETAILS First Name: Dylan Last Name: Wettlaufer"
+                                # We want just "Dylan Wettlaufer"
+                                best_answer = best_answer.replace("PATIENT DETAILS", "").strip()
+                                best_answer = best_answer.replace("First Name:", "").replace("Last Name:", "").strip()
+                            elif best_answer.startswith("First Name:"):
+                                best_answer = best_answer.replace("First Name:", "").replace("Last Name:", "").strip()
+
+                    
+                        final_extracted_kv_pairs[question] = best_answer
+
+                    else:
+                        # If no valid answer found, store a default message
+                        final_extracted_kv_pairs[question] = "Not Found"
+
+
+
                 
-                analysis_results["extracted_data"] = extracted_kv_pairs
+                analysis_results["extracted_data"] = final_extracted_kv_pairs
                 analysis_results["status"] = "completed"
 
             elif not self.layoutlmv3_processor or not self.layoutlmv3_model:
