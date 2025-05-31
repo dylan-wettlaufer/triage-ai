@@ -22,17 +22,17 @@ supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY) # Uncomme
 
 class DocumentAnalyzer:
     def __init__(self):
-        self.layoutlmv3_processor = None
+        self.layoutlmv3_processor = None 
         self.layoutlmv3_model = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu" # Set device to GPU if available, else CPU
         if settings.LAYOUTLMV3_MODEL_ID:
            
             try:
-                self.layoutlmv3_processor = AutoProcessor.from_pretrained(
+                self.layoutlmv3_processor = AutoProcessor.from_pretrained( # Load the LayoutLMv3 processor
                     settings.LAYOUTLMV3_MODEL_ID,
-                    apply_ocr=True # <--- ADD THIS LINE
+                    apply_ocr=True # <-- Enable OCR processing
                 )
-                self.layoutlmv3_model = AutoModelForDocumentQuestionAnswering.from_pretrained(settings.LAYOUTLMV3_MODEL_ID)
+                self.layoutlmv3_model = AutoModelForDocumentQuestionAnswering.from_pretrained(settings.LAYOUTLMV3_MODEL_ID) 
                 
                 if torch.cuda.is_available():
                     self.layoutlmv3_model.to("cuda")
@@ -80,17 +80,18 @@ class DocumentAnalyzer:
             print(f"Error downloading file {file_path_in_supabase}: {e}")
             return analysis_results # Return early if download fails
         
-        document_images: List[Image.Image] = []
-        try:
+        document_images: List[Image.Image] = [] # This will hold the images extracted from the document
+
+        try: # Check if the file is a PDF or an image
             if file_type == "document" and local_file_path.lower().endswith(".pdf"):
                 try:
                     # Open the PDF file using PyMuPDF
                     doc = fitz.open(local_file_path)
-                    for page_num in range(doc.page_count):
-                        page = doc.load_page(page_num)
-                        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                        img_bytes = pix.tobytes("png")
-                        document_images.append(Image.open(io.BytesIO(img_bytes)).convert("RGB"))
+                    for page_num in range(doc.page_count): # Iterate through each page
+                        page = doc.load_page(page_num) # Load the page
+                        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Get a high-resolution image of the page
+                        img_bytes = pix.tobytes("png") # Convert to PNG bytes
+                        document_images.append(Image.open(io.BytesIO(img_bytes)).convert("RGB")) # Convert to RGB to ensure compatibility with LayoutLMv3
                     
                     doc.close()
                     print(f"Converted {len(document_images)} PDF page(s) to images.")
@@ -101,8 +102,9 @@ class DocumentAnalyzer:
                     print(f"Error converting PDF {local_file_path} to images: {e}")
                     return analysis_results # Return early if PDF conversion fails
 
+            
             elif file_type == "image" and local_file_path.lower().endswith(('.jpg', '.jpeg', '.png')):
-                document_images.append(Image.open(local_file_path).convert("RGB"))
+                document_images.append(Image.open(local_file_path).convert("RGB")) # Convert to RGB to ensure compatibility with LayoutLMv3
                 print(f"Loaded image file: {local_file_path}")
 
             else:
@@ -119,6 +121,7 @@ class DocumentAnalyzer:
 
             if self.layoutlmv3_processor and self.layoutlmv3_model and document_images:
                 print("Starting LayoutLMv3 analysis...")
+
                 questions_for_form = [
                         "What is the patient's full name?",
                         "What is the patient's date of birth?",
@@ -133,7 +136,7 @@ class DocumentAnalyzer:
                 extracted_kv_pairs = {q: [] for q in questions_for_form} # stores the extracted key-value pairs from the document
 
                 for i, image_page in enumerate(document_images):
-                    if not isinstance(image_page, Image.Image):
+                    if not isinstance(image_page, Image.Image): # Check if image_page is a valid PIL Image object
                         print(f"Skipping page {i+1}: Not a valid PIL Image object found in document_images. Type: {type(image_page)}")
                         continue # Skip to next image if this one is somehow corrupted or not an image
 
@@ -153,10 +156,10 @@ class DocumentAnalyzer:
                             with torch.no_grad(): # Use no_grad for inference to save memory and speed up
                                 outputs = self.layoutlmv3_model(**single_question_inputs)
 
-                            start_logits = outputs.start_logits
-                            end_logits = outputs.end_logits
-                            answer_start = torch.argmax(start_logits)
-                            answer_end = torch.argmax(end_logits) + 1 
+                            start_logits = outputs.start_logits # Get the start logits for the answer
+                            end_logits = outputs.end_logits # Get the end logits for the answer
+                            answer_start = torch.argmax(start_logits) # Get the index of the start position of the answer
+                            answer_end = torch.argmax(end_logits) + 1  # Get the index of the end position of the answer (add 1 to include the end token)
 
                             current_start_logit = start_logits[0, answer_start].item() # Get the logit for the start position
                             current_end_logit = end_logits[0, answer_end - 1].item() # Get the logit for the end position
@@ -169,7 +172,7 @@ class DocumentAnalyzer:
                                 skip_special_tokens=True
                             ).strip()
 
-                            if answer and answer not in ["[CLS]", "[SEP]", ""]:
+                            if answer and answer not in ["[CLS]", "[SEP]", ""]: # Valid answer found
                                 extracted_kv_pairs[q].append({
                                     'answer': answer,
                                     'score': confidence_score,
@@ -177,6 +180,7 @@ class DocumentAnalyzer:
                                 })
 
                                 print(f"    Q: {q} -> A: {answer}, score: {confidence_score}, page: {i + 1}")
+
                             elif q not in extracted_kv_pairs: # If not found yet for this question across all pages
                                 extracted_kv_pairs[q].append({
                                     'answer': "Not Found (Empty/Special)",
@@ -247,14 +251,13 @@ class DocumentAnalyzer:
                         final_extracted_kv_pairs[question] = "Not Found"
 
 
-
-                
                 analysis_results["extracted_data"] = final_extracted_kv_pairs
                 analysis_results["status"] = "completed"
 
             elif not self.layoutlmv3_processor or not self.layoutlmv3_model:
                 analysis_results["status"] = "model_not_loaded"
                 analysis_results["error"] = "LayoutLMv3 model or processor could not be loaded."
+                
             else:
                 analysis_results["status"] = "no_document_images_for_qa"
                 analysis_results["error"] = "No document images were generated for LayoutLMv3 QA."
