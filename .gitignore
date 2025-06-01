@@ -1,0 +1,22 @@
+# .gitignore
+# Ignore Python specific files
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+venv/
+.vscode/
+
+# Ignore large datasets
+model_training/data/
+# If you save models in ml_model_dev, you might want to ignore the training artifacts
+
+# Or specifically
+model_training/skin_cancer_vit_model/
+
+# Ignore other common large files or temporary files
+*.zip
+*.rar
+*.tar.gz
+*.DS_Store
+*.log
