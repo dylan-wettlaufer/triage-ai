@@ -33,12 +33,15 @@ class TriageOrchestrator:
             patient_identifier=patient_identifier
         )
 
+        
+
         all_extracted_data_results.append(analysis_result)
+
 
 
         # --- PLACEHOLDER FOR ACTUAL AI LOGIC ---
         # Here, you would call your AI models:
-    
+
         # from models.image_classifier import ImageClassifier
         
         # add dummy data for testing
@@ -58,6 +61,7 @@ class TriageOrchestrator:
             extracted_document_data=all_extracted_data_results,
             image_analysis_results=dummy_image_results
         )
+
         print(f"[{triage_id}] Triage process completed (simulated) and DB updated.")
         # --- END PLACEHOLDER ---
         # In a real-world scenario, you would also handle exceptions and errors,

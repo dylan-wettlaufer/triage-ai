@@ -62,6 +62,7 @@ async def upload_files(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File '{file.filename}' is empty"
             )
+        
         if file.size > settings.MAX_FILE_SIZE_MB * 1024 * 1024:  # Convert MB to bytes, ensure the file size is within limits
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
